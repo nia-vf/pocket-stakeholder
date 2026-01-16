@@ -118,9 +118,9 @@
 **Objective:** Build the command-line interface for invoking the Tech Lead agent.
 
 **Tasks:**
-- [ ] Create CLI entry point
-- [ ] Implement `tech-lead <spec-path>` command
-- [ ] Add `--autonomous` flag to skip interviews
+- [x] Create CLI entry point
+- [x] Implement `tech-lead <spec-path>` command
+- [x] Add `--autonomous` flag to skip interviews
 - [ ] Add `--output <path>` flag for ADR location
 - [ ] Implement progress output and formatting
 - [ ] Add help text and usage examples
