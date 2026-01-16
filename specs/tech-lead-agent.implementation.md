@@ -141,7 +141,7 @@
 - [x] Run end-to-end test: spec → analysis → interview → ADRs
 - [x] Export module interface for programmatic use
 - [x] Document API for ralph-borg adapter
-- [ ] Write usage documentation
+- [x] Write usage documentation
 
 **Success Criteria:**
 - Complete flow works for test spec
