@@ -27,3 +27,22 @@ export type {
 // Export agents
 export { TechLeadAgent, createTechLeadAgent } from './agents/index.js';
 export type { TechLeadAgentConfig } from './agents/index.js';
+
+// Export utilities
+export { LLMClient, LLMError, createLLMClient } from './utils/index.js';
+export type {
+  LLMClientConfig,
+  LLMMessage,
+  CompletionOptions,
+  CompletionResult,
+} from './utils/index.js';
+
+export {
+  parseSpec,
+  parseSpecContent,
+  readSpecFile,
+  loadProjectContext,
+  createEmptyParsedSpec,
+  SpecParseError,
+} from './utils/index.js';
+export type { SpecParserOptions } from './utils/index.js';

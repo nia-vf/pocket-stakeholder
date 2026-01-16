@@ -30,7 +30,7 @@
 - [x] Implement `TechLeadAgent` class/module skeleton
 - [x] Define `FeatureContext` type for input
 - [x] Define `InterviewResult` and `Recommendations` types for output
-- [ ] Add LLM client wrapper (Claude API integration)
+- [x] Add LLM client wrapper (Claude API integration)
 
 **Success Criteria:**
 - Agent interface defined with TypeScript types / Python protocols / Go interfaces
@@ -44,7 +44,7 @@
 **Objective:** Implement the ability to read and understand specification documents.
 
 **Tasks:**
-- [ ] Create spec file reader (markdown parsing)
+- [x] Create spec file reader (markdown parsing)
 - [ ] Extract key sections: Overview, Features, Requirements, Technical Architecture
 - [ ] Build context object from parsed spec
 - [ ] Handle missing/optional sections gracefully
