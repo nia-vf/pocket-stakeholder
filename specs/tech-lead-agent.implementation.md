@@ -99,12 +99,12 @@
 **Objective:** Generate properly formatted Architecture Decision Records from analysis and interview results.
 
 **Tasks:**
-- [ ] Create ADR template renderer
-- [ ] Implement decision-to-ADR transformation
-- [ ] Add ADR numbering system
-- [ ] Generate alternatives considered from interview context
-- [ ] Write ADRs to file system
-- [ ] Support multiple ADRs per spec
+- [x] Create ADR template renderer
+- [x] Implement decision-to-ADR transformation
+- [x] Add ADR numbering system
+- [x] Generate alternatives considered from interview context
+- [x] Write ADRs to file system
+- [x] Support multiple ADRs per spec
 
 **Success Criteria:**
 - ADRs follow standard format from spec

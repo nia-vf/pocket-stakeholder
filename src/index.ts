@@ -75,3 +75,20 @@ export type {
   CLIPromptAdapter,
   CLIPromptConfig,
 } from './interview/index.js';
+
+// Export ADR module
+export {
+  ADRGenerator,
+  createADRGenerator,
+  ADRNumberingSystem,
+  renderADRTemplate,
+  formatADRNumber,
+  generateADRFilename,
+  decisionToADRDraft,
+} from './adr/index.js';
+export type {
+  ADRStatus,
+  ADRGeneratorConfig,
+  RenderedADR,
+  WriteResult,
+} from './adr/index.js';
