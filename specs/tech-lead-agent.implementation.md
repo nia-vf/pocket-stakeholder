@@ -83,9 +83,9 @@
 - [x] Design interview question generator
 - [x] Implement core question set (5-8 questions per SPEC.md)
 - [x] Add follow-up question logic based on answers
-- [ ] Create CLI prompt interface for user answers
-- [ ] Support programmatic answer injection (for agent-to-agent interviews)
-- [ ] Implement interview session state management
+- [x] Create CLI prompt interface for user answers
+- [x] Support programmatic answer injection (for agent-to-agent interviews)
+- [x] Implement interview session state management
 
 **Success Criteria:**
 - Can conduct interactive interview via CLI
