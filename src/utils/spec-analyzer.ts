@@ -15,17 +15,62 @@ import { LLMClient, type LLMClientConfig } from './llm-client.js';
 import { summarizeSpec } from './spec-parser.js';
 
 /**
+ * Decision with ambiguity scoring applied
+ */
+export interface ScoredDecision extends IdentifiedDecision {
+  /** Whether this decision needs clarification based on clarity threshold */
+  needsClarification: boolean;
+
+  /** Ambiguity level: 'clear' | 'moderate' | 'unclear' */
+  ambiguityLevel: AmbiguityLevel;
+}
+
+/**
+ * Ambiguity levels for decisions
+ */
+export type AmbiguityLevel = 'clear' | 'moderate' | 'unclear';
+
+/**
  * Result of spec analysis
  */
 export interface AnalysisResult {
   /** Technical decisions identified that need documentation */
   decisions: IdentifiedDecision[];
 
+  /** Decisions with ambiguity scoring applied */
+  scoredDecisions: ScoredDecision[];
+
   /** Ambiguous areas requiring clarification */
   ambiguities: Ambiguity[];
 
   /** Summary of the analysis */
   summary: string;
+
+  /** Statistics about the analysis */
+  stats: AnalysisStats;
+}
+
+/**
+ * Statistics about the analysis results
+ */
+export interface AnalysisStats {
+  /** Total number of decisions identified */
+  totalDecisions: number;
+
+  /** Number of decisions needing clarification */
+  decisionsNeedingClarification: number;
+
+  /** Number of decisions that are clear */
+  clearDecisions: number;
+
+  /** Total number of ambiguities identified */
+  totalAmbiguities: number;
+
+  /** Breakdown of decisions by category */
+  decisionsByCategory: Record<DecisionCategory, number>;
+
+  /** Average clarity score across all decisions */
+  averageClarityScore: number;
 }
 
 /**
@@ -220,10 +265,21 @@ Identify technical decisions that need to be documented and any ambiguities that
       return ambiguity;
     });
 
+    // Score decisions for ambiguity
+    const scoredDecisions = scoreDecisions(decisions);
+
+    // Calculate statistics
+    const stats = calculateAnalysisStats(decisions, scoredDecisions, ambiguities);
+
+    // Use LLM summary if provided, otherwise generate one locally
+    const summary = raw.summary || generateAnalysisSummary(stats);
+
     return {
       decisions,
+      scoredDecisions,
       ambiguities,
-      summary: raw.summary,
+      summary,
+      stats,
     };
   }
 
@@ -427,4 +483,143 @@ export function scoreAmbiguity(text: string): number {
  */
 export function createSpecAnalyzer(config?: SpecAnalyzerConfig): SpecAnalyzer {
   return new SpecAnalyzer(config);
+}
+
+/**
+ * Clarity threshold for determining if a decision needs clarification
+ * Decisions with clarityScore below this threshold need clarification
+ */
+export const CLARITY_THRESHOLD = 0.6;
+
+/**
+ * Score a decision and determine its ambiguity level
+ *
+ * Converts a clarity score (0-1 where 1 is clear) to an ambiguity assessment.
+ *
+ * @param decision The decision to score
+ * @returns ScoredDecision with needsClarification and ambiguityLevel
+ */
+export function scoreDecisionAmbiguity(decision: IdentifiedDecision): ScoredDecision {
+  const clarityScore = decision.clarityScore;
+
+  // Determine ambiguity level based on clarity score
+  let ambiguityLevel: AmbiguityLevel;
+  if (clarityScore >= 0.7) {
+    ambiguityLevel = 'clear';
+  } else if (clarityScore >= 0.4) {
+    ambiguityLevel = 'moderate';
+  } else {
+    ambiguityLevel = 'unclear';
+  }
+
+  return {
+    ...decision,
+    needsClarification: clarityScore < CLARITY_THRESHOLD,
+    ambiguityLevel,
+  };
+}
+
+/**
+ * Score all decisions in a list
+ *
+ * @param decisions List of decisions to score
+ * @returns List of scored decisions
+ */
+export function scoreDecisions(decisions: IdentifiedDecision[]): ScoredDecision[] {
+  return decisions.map(scoreDecisionAmbiguity);
+}
+
+/**
+ * Calculate analysis statistics from decisions and ambiguities
+ *
+ * @param decisions List of identified decisions
+ * @param scoredDecisions List of scored decisions
+ * @param ambiguities List of ambiguities
+ * @returns Analysis statistics
+ */
+export function calculateAnalysisStats(
+  decisions: IdentifiedDecision[],
+  scoredDecisions: ScoredDecision[],
+  ambiguities: Ambiguity[]
+): AnalysisStats {
+  const decisionsByCategory: Record<DecisionCategory, number> = {
+    architecture: 0,
+    library: 0,
+    pattern: 0,
+    integration: 0,
+    'data-model': 0,
+    'api-design': 0,
+    security: 0,
+    performance: 0,
+  };
+
+  for (const decision of decisions) {
+    decisionsByCategory[decision.category]++;
+  }
+
+  const totalClarityScore = decisions.reduce((sum, d) => sum + d.clarityScore, 0);
+  const averageClarityScore = decisions.length > 0 ? totalClarityScore / decisions.length : 0;
+
+  return {
+    totalDecisions: decisions.length,
+    decisionsNeedingClarification: scoredDecisions.filter((d) => d.needsClarification).length,
+    clearDecisions: scoredDecisions.filter((d) => !d.needsClarification).length,
+    totalAmbiguities: ambiguities.length,
+    decisionsByCategory,
+    averageClarityScore: Math.round(averageClarityScore * 100) / 100,
+  };
+}
+
+/**
+ * Generate a human-readable analysis summary
+ *
+ * Creates a summary based on the analysis results that can be used
+ * standalone (without relying on LLM-generated summary).
+ *
+ * @param stats Analysis statistics
+ * @returns Human-readable summary string
+ */
+export function generateAnalysisSummary(stats: AnalysisStats): string {
+  const parts: string[] = [];
+
+  // Opening statement about decision count
+  if (stats.totalDecisions === 0) {
+    parts.push('No technical decisions were identified in this specification.');
+  } else if (stats.totalDecisions === 1) {
+    parts.push('1 technical decision was identified that may warrant documentation.');
+  } else {
+    parts.push(`${stats.totalDecisions} technical decisions were identified that may warrant documentation.`);
+  }
+
+  // Clarity assessment
+  if (stats.totalDecisions > 0) {
+    if (stats.decisionsNeedingClarification === 0) {
+      parts.push('All decisions appear to have clear direction in the specification.');
+    } else if (stats.decisionsNeedingClarification === stats.totalDecisions) {
+      parts.push('All decisions require clarification before proceeding.');
+    } else {
+      parts.push(
+        `${stats.decisionsNeedingClarification} decision(s) require clarification, ` +
+          `while ${stats.clearDecisions} have clear direction.`
+      );
+    }
+  }
+
+  // Highlight key categories with multiple decisions
+  const significantCategories = Object.entries(stats.decisionsByCategory)
+    .filter(([, count]) => count >= 2)
+    .map(([category]) => category);
+
+  if (significantCategories.length > 0) {
+    parts.push(`Key areas include: ${significantCategories.join(', ')}.`);
+  }
+
+  // Ambiguity assessment
+  if (stats.totalAmbiguities > 0) {
+    parts.push(
+      `${stats.totalAmbiguities} area(s) of ambiguity were identified that may need clarification.`
+    );
+  }
+
+  return parts.join(' ');
 }

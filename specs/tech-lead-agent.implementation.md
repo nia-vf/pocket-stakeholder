@@ -65,8 +65,8 @@
 - [x] Create analysis prompt for Tech Lead persona
 - [x] Implement decision identification logic
 - [x] Categorize decisions by type (architecture, library, pattern, integration)
-- [ ] Score ambiguity level for each decision (clear vs needs-clarification)
-- [ ] Generate analysis summary
+- [x] Score ambiguity level for each decision (clear vs needs-clarification)
+- [x] Generate analysis summary
 
 **Success Criteria:**
 - Given a clear spec, identifies 3-5 key technical decisions

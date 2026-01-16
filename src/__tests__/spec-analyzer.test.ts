@@ -8,9 +8,16 @@ import {
   createSpecAnalyzer,
   categorizeDecision,
   scoreAmbiguity,
+  scoreDecisionAmbiguity,
+  scoreDecisions,
+  calculateAnalysisStats,
+  generateAnalysisSummary,
   TECH_LEAD_ANALYSIS_PROMPT,
+  CLARITY_THRESHOLD,
+  type ScoredDecision,
+  type AnalysisStats,
 } from '../utils/spec-analyzer.js';
-import type { FeatureContext, DecisionCategory } from '../types/index.js';
+import type { FeatureContext, DecisionCategory, IdentifiedDecision, Ambiguity } from '../types/index.js';
 
 // Mock the LLM client
 vi.mock('../utils/llm-client.js', () => ({
@@ -291,5 +298,311 @@ describe('SpecAnalyzer.analyze', () => {
     const callArg = mockCompleteJSON.mock.calls[0][0];
     expect(callArg).toContain('ADR-001');
     expect(callArg).toContain('Use TypeScript');
+  });
+
+  it('should include scoredDecisions and stats in result', async () => {
+    mockCompleteJSON.mockResolvedValue({
+      decisions: [
+        { title: 'Clear Decision', category: 'architecture', description: 'Well defined', clarityScore: 0.8 },
+        { title: 'Unclear Decision', category: 'library', description: 'Needs work', clarityScore: 0.3 },
+      ],
+      ambiguities: [
+        { description: 'Unclear area', suggestedQuestions: ['What?'] },
+      ],
+      summary: 'Test summary',
+    });
+
+    const result = await analyzer.analyze({
+      specPath: '/test.md',
+      specContent: '# Test',
+      parsedSpec: { title: 'Test', otherSections: {} },
+      projectContext: { projectRoot: '/test', existingDecisions: [] },
+    });
+
+    // Check scoredDecisions
+    expect(result.scoredDecisions).toHaveLength(2);
+    expect(result.scoredDecisions[0].needsClarification).toBe(false);
+    expect(result.scoredDecisions[0].ambiguityLevel).toBe('clear');
+    expect(result.scoredDecisions[1].needsClarification).toBe(true);
+    expect(result.scoredDecisions[1].ambiguityLevel).toBe('unclear');
+
+    // Check stats
+    expect(result.stats.totalDecisions).toBe(2);
+    expect(result.stats.clearDecisions).toBe(1);
+    expect(result.stats.decisionsNeedingClarification).toBe(1);
+    expect(result.stats.totalAmbiguities).toBe(1);
+  });
+});
+
+describe('scoreDecisionAmbiguity', () => {
+  it('should mark high clarity decisions as not needing clarification', () => {
+    const decision: IdentifiedDecision = {
+      title: 'Clear Decision',
+      category: 'architecture',
+      description: 'Well defined decision',
+      clarityScore: 0.8,
+    };
+
+    const scored = scoreDecisionAmbiguity(decision);
+
+    expect(scored.needsClarification).toBe(false);
+    expect(scored.ambiguityLevel).toBe('clear');
+  });
+
+  it('should mark low clarity decisions as needing clarification', () => {
+    const decision: IdentifiedDecision = {
+      title: 'Unclear Decision',
+      category: 'library',
+      description: 'Vague decision',
+      clarityScore: 0.3,
+    };
+
+    const scored = scoreDecisionAmbiguity(decision);
+
+    expect(scored.needsClarification).toBe(true);
+    expect(scored.ambiguityLevel).toBe('unclear');
+  });
+
+  it('should classify moderate clarity as moderate ambiguity', () => {
+    const decision: IdentifiedDecision = {
+      title: 'Moderate Decision',
+      category: 'pattern',
+      description: 'Somewhat defined',
+      clarityScore: 0.5,
+    };
+
+    const scored = scoreDecisionAmbiguity(decision);
+
+    expect(scored.needsClarification).toBe(true);
+    expect(scored.ambiguityLevel).toBe('moderate');
+  });
+
+  it('should respect CLARITY_THRESHOLD boundary', () => {
+    const atThreshold: IdentifiedDecision = {
+      title: 'At Threshold',
+      category: 'architecture',
+      description: 'At boundary',
+      clarityScore: CLARITY_THRESHOLD,
+    };
+
+    const belowThreshold: IdentifiedDecision = {
+      title: 'Below Threshold',
+      category: 'architecture',
+      description: 'Below boundary',
+      clarityScore: CLARITY_THRESHOLD - 0.01,
+    };
+
+    expect(scoreDecisionAmbiguity(atThreshold).needsClarification).toBe(false);
+    expect(scoreDecisionAmbiguity(belowThreshold).needsClarification).toBe(true);
+  });
+
+  it('should preserve original decision properties', () => {
+    const decision: IdentifiedDecision = {
+      title: 'Test Decision',
+      category: 'api-design',
+      description: 'Test description',
+      clarityScore: 0.7,
+      options: ['Option A', 'Option B'],
+    };
+
+    const scored = scoreDecisionAmbiguity(decision);
+
+    expect(scored.title).toBe(decision.title);
+    expect(scored.category).toBe(decision.category);
+    expect(scored.description).toBe(decision.description);
+    expect(scored.clarityScore).toBe(decision.clarityScore);
+    expect(scored.options).toEqual(decision.options);
+  });
+});
+
+describe('scoreDecisions', () => {
+  it('should score all decisions in a list', () => {
+    const decisions: IdentifiedDecision[] = [
+      { title: 'Decision 1', category: 'architecture', description: 'Desc 1', clarityScore: 0.9 },
+      { title: 'Decision 2', category: 'library', description: 'Desc 2', clarityScore: 0.5 },
+      { title: 'Decision 3', category: 'pattern', description: 'Desc 3', clarityScore: 0.2 },
+    ];
+
+    const scored = scoreDecisions(decisions);
+
+    expect(scored).toHaveLength(3);
+    expect(scored[0].ambiguityLevel).toBe('clear');
+    expect(scored[1].ambiguityLevel).toBe('moderate');
+    expect(scored[2].ambiguityLevel).toBe('unclear');
+  });
+
+  it('should return empty array for empty input', () => {
+    const scored = scoreDecisions([]);
+    expect(scored).toEqual([]);
+  });
+});
+
+describe('calculateAnalysisStats', () => {
+  const createDecision = (category: DecisionCategory, clarity: number): IdentifiedDecision => ({
+    title: 'Test',
+    category,
+    description: 'Test',
+    clarityScore: clarity,
+  });
+
+  it('should calculate correct totals', () => {
+    const decisions: IdentifiedDecision[] = [
+      createDecision('architecture', 0.8),
+      createDecision('library', 0.3),
+      createDecision('pattern', 0.5),
+    ];
+    const scoredDecisions = scoreDecisions(decisions);
+    const ambiguities: Ambiguity[] = [
+      { description: 'Ambiguity 1', suggestedQuestions: ['Q1'] },
+      { description: 'Ambiguity 2', suggestedQuestions: ['Q2'] },
+    ];
+
+    const stats = calculateAnalysisStats(decisions, scoredDecisions, ambiguities);
+
+    expect(stats.totalDecisions).toBe(3);
+    expect(stats.totalAmbiguities).toBe(2);
+  });
+
+  it('should count decisions by category', () => {
+    const decisions: IdentifiedDecision[] = [
+      createDecision('architecture', 0.8),
+      createDecision('architecture', 0.6),
+      createDecision('library', 0.7),
+      createDecision('security', 0.5),
+      createDecision('security', 0.4),
+      createDecision('security', 0.3),
+    ];
+    const scoredDecisions = scoreDecisions(decisions);
+
+    const stats = calculateAnalysisStats(decisions, scoredDecisions, []);
+
+    expect(stats.decisionsByCategory.architecture).toBe(2);
+    expect(stats.decisionsByCategory.library).toBe(1);
+    expect(stats.decisionsByCategory.security).toBe(3);
+    expect(stats.decisionsByCategory.pattern).toBe(0);
+  });
+
+  it('should calculate correct clarification counts', () => {
+    const decisions: IdentifiedDecision[] = [
+      createDecision('architecture', 0.8), // clear
+      createDecision('library', 0.7), // clear
+      createDecision('pattern', 0.5), // needs clarification
+      createDecision('api-design', 0.3), // needs clarification
+    ];
+    const scoredDecisions = scoreDecisions(decisions);
+
+    const stats = calculateAnalysisStats(decisions, scoredDecisions, []);
+
+    expect(stats.clearDecisions).toBe(2);
+    expect(stats.decisionsNeedingClarification).toBe(2);
+  });
+
+  it('should calculate average clarity score', () => {
+    const decisions: IdentifiedDecision[] = [
+      createDecision('architecture', 0.8),
+      createDecision('library', 0.6),
+      createDecision('pattern', 0.4),
+    ];
+    const scoredDecisions = scoreDecisions(decisions);
+
+    const stats = calculateAnalysisStats(decisions, scoredDecisions, []);
+
+    expect(stats.averageClarityScore).toBe(0.6);
+  });
+
+  it('should handle empty decisions', () => {
+    const stats = calculateAnalysisStats([], [], []);
+
+    expect(stats.totalDecisions).toBe(0);
+    expect(stats.clearDecisions).toBe(0);
+    expect(stats.decisionsNeedingClarification).toBe(0);
+    expect(stats.averageClarityScore).toBe(0);
+  });
+});
+
+describe('generateAnalysisSummary', () => {
+  const createStats = (overrides: Partial<AnalysisStats> = {}): AnalysisStats => ({
+    totalDecisions: 0,
+    decisionsNeedingClarification: 0,
+    clearDecisions: 0,
+    totalAmbiguities: 0,
+    decisionsByCategory: {
+      architecture: 0,
+      library: 0,
+      pattern: 0,
+      integration: 0,
+      'data-model': 0,
+      'api-design': 0,
+      security: 0,
+      performance: 0,
+    },
+    averageClarityScore: 0,
+    ...overrides,
+  });
+
+  it('should handle zero decisions', () => {
+    const stats = createStats({ totalDecisions: 0 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('No technical decisions were identified');
+  });
+
+  it('should handle single decision', () => {
+    const stats = createStats({ totalDecisions: 1, clearDecisions: 1 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('1 technical decision was identified');
+  });
+
+  it('should handle multiple decisions', () => {
+    const stats = createStats({ totalDecisions: 5, clearDecisions: 3, decisionsNeedingClarification: 2 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('5 technical decisions were identified');
+    expect(summary).toContain('2 decision(s) require clarification');
+    expect(summary).toContain('3 have clear direction');
+  });
+
+  it('should mention when all decisions are clear', () => {
+    const stats = createStats({ totalDecisions: 3, clearDecisions: 3, decisionsNeedingClarification: 0 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('All decisions appear to have clear direction');
+  });
+
+  it('should mention when all decisions need clarification', () => {
+    const stats = createStats({ totalDecisions: 3, clearDecisions: 0, decisionsNeedingClarification: 3 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('All decisions require clarification before proceeding');
+  });
+
+  it('should highlight significant categories', () => {
+    const stats = createStats({
+      totalDecisions: 4,
+      clearDecisions: 4,
+      decisionsByCategory: {
+        architecture: 2,
+        security: 2,
+        library: 0,
+        pattern: 0,
+        integration: 0,
+        'data-model': 0,
+        'api-design': 0,
+        performance: 0,
+      },
+    });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('Key areas include:');
+    expect(summary).toContain('architecture');
+    expect(summary).toContain('security');
+  });
+
+  it('should mention ambiguities', () => {
+    const stats = createStats({ totalAmbiguities: 3 });
+    const summary = generateAnalysisSummary(stats);
+
+    expect(summary).toContain('3 area(s) of ambiguity were identified');
   });
 });
