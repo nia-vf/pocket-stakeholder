@@ -7,6 +7,9 @@ import {
   readSpecFile,
   loadProjectContext,
   createEmptyParsedSpec,
+  validateParsedSpec,
+  summarizeSpec,
+  buildFeatureContext,
   SpecParseError,
 } from '../utils/spec-parser.js';
 
@@ -282,6 +285,193 @@ Use JWT tokens for session management.
       const cause = new Error('Original error');
       const error = new SpecParseError('Wrapped error', cause);
       expect(error.cause).toBe(cause);
+    });
+  });
+
+  describe('validateParsedSpec', () => {
+    it('should validate a complete spec as valid', () => {
+      const spec = {
+        title: 'My Feature',
+        overview: 'This is a detailed overview of the feature.',
+        features: [{ name: 'Feature 1', description: 'Description 1' }],
+        requirements: [{ id: 'FR-1', description: 'Requirement 1', type: 'functional' as const }],
+        technicalArchitecture: 'Use microservices architecture.',
+        otherSections: {},
+      };
+
+      const result = validateParsedSpec(spec);
+
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.completenessScore).toBe(1);
+      expect(result.presentSections).toContain('title');
+      expect(result.presentSections).toContain('overview');
+      expect(result.presentSections).toContain('features');
+      expect(result.presentSections).toContain('requirements');
+      expect(result.presentSections).toContain('technicalArchitecture');
+    });
+
+    it('should return error for spec without title', () => {
+      const spec = {
+        title: 'Untitled',
+        otherSections: {},
+      };
+
+      const result = validateParsedSpec(spec);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('missing a title');
+    });
+
+    it('should return warnings for missing optional sections', () => {
+      const spec = {
+        title: 'My Feature',
+        otherSections: {},
+      };
+
+      const result = validateParsedSpec(spec);
+
+      expect(result.isValid).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.missingSections).toContain('overview');
+      expect(result.missingSections).toContain('features');
+      expect(result.missingSections).toContain('requirements');
+    });
+
+    it('should warn about brief overview', () => {
+      const spec = {
+        title: 'My Feature',
+        overview: 'Short.',
+        otherSections: {},
+      };
+
+      const result = validateParsedSpec(spec);
+
+      expect(result.warnings.some((w) => w.includes('brief'))).toBe(true);
+    });
+
+    it('should calculate partial completeness score', () => {
+      const spec = {
+        title: 'My Feature',
+        overview: 'This is a detailed overview.',
+        otherSections: {},
+      };
+
+      const result = validateParsedSpec(spec);
+
+      // Title (0.2) + Overview (0.2) = 0.4
+      expect(result.completenessScore).toBe(0.4);
+    });
+  });
+
+  describe('summarizeSpec', () => {
+    it('should create a summary with all sections', () => {
+      const spec = {
+        title: 'User Authentication',
+        overview: 'Implement user authentication for the application.',
+        features: [
+          { name: 'Login', description: 'User can log in', priority: 'P0' as const },
+          { name: 'Logout', description: 'User can log out' },
+        ],
+        requirements: [
+          { id: 'FR-1', description: 'Validate email', type: 'functional' as const },
+          { id: 'NFR-1', description: 'Response under 2s', type: 'non-functional' as const },
+        ],
+        technicalArchitecture: 'Use JWT tokens for session management.',
+        otherSections: {
+          Dependencies: '- Node.js\n- Express',
+        },
+      };
+
+      const summary = summarizeSpec(spec);
+
+      expect(summary).toContain('# User Authentication');
+      expect(summary).toContain('## Overview');
+      expect(summary).toContain('Implement user authentication');
+      expect(summary).toContain('## Features');
+      expect(summary).toContain('Login (P0)');
+      expect(summary).toContain('Logout');
+      expect(summary).toContain('## Functional Requirements');
+      expect(summary).toContain('FR-1: Validate email');
+      expect(summary).toContain('## Non-Functional Requirements');
+      expect(summary).toContain('NFR-1: Response under 2s');
+      expect(summary).toContain('## Technical Architecture');
+      expect(summary).toContain('JWT tokens');
+      expect(summary).toContain('## Dependencies');
+    });
+
+    it('should handle spec with minimal content', () => {
+      const spec = {
+        title: 'Minimal Spec',
+        otherSections: {},
+      };
+
+      const summary = summarizeSpec(spec);
+
+      expect(summary).toContain('# Minimal Spec');
+      expect(summary).not.toContain('## Overview');
+    });
+
+    it('should truncate long technical architecture', () => {
+      const longArch = 'A'.repeat(600);
+      const spec = {
+        title: 'Spec',
+        technicalArchitecture: longArch,
+        otherSections: {},
+      };
+
+      const summary = summarizeSpec(spec);
+
+      expect(summary).toContain('...');
+      expect(summary.length).toBeLessThan(longArch.length + 100);
+    });
+  });
+
+  describe('buildFeatureContext', () => {
+    it('should build context with validation results', async () => {
+      const specPath = join(testDir, 'validated-spec.md');
+      writeFileSync(
+        specPath,
+        `# Validated Feature
+
+## Overview
+This is the feature overview with enough content.
+
+## Features
+- **Login** - User authentication
+
+## Functional Requirements
+| Requirement | Description |
+|-------------|-------------|
+| **FR-1** | Validate input |
+`
+      );
+
+      const context = await buildFeatureContext(specPath);
+
+      expect(context.validation).toBeDefined();
+      expect(context.validation.isValid).toBe(true);
+      expect(context.validation.presentSections).toContain('title');
+      expect(context.validation.presentSections).toContain('overview');
+      expect(context.validation.completenessScore).toBeGreaterThan(0.5);
+    });
+
+    it('should throw in strict mode if spec has errors', async () => {
+      const specPath = join(testDir, 'invalid-spec.md');
+      writeFileSync(specPath, 'No title header here');
+
+      await expect(buildFeatureContext(specPath, { strict: true })).rejects.toThrow(SpecParseError);
+    });
+
+    it('should not throw in non-strict mode for spec with errors', async () => {
+      const specPath = join(testDir, 'invalid-spec-nonstrict.md');
+      writeFileSync(specPath, 'No title header here');
+
+      const context = await buildFeatureContext(specPath);
+
+      expect(context.validation.isValid).toBe(false);
+      expect(context.validation.errors.length).toBeGreaterThan(0);
     });
   });
 });

@@ -45,10 +45,10 @@
 
 **Tasks:**
 - [x] Create spec file reader (markdown parsing)
-- [ ] Extract key sections: Overview, Features, Requirements, Technical Architecture
-- [ ] Build context object from parsed spec
-- [ ] Handle missing/optional sections gracefully
-- [ ] Add project context loading (CLAUDE.md, existing decisions)
+- [x] Extract key sections: Overview, Features, Requirements, Technical Architecture
+- [x] Build context object from parsed spec
+- [x] Handle missing/optional sections gracefully
+- [x] Add project context loading (CLAUDE.md, existing decisions)
 
 **Success Criteria:**
 - Can read `specs/SPEC.md` and extract structured data

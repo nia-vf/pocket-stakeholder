@@ -18,6 +18,10 @@ export {
   readSpecFile,
   loadProjectContext,
   createEmptyParsedSpec,
+  validateParsedSpec,
+  summarizeSpec,
+  buildFeatureContext,
   SpecParseError,
   type SpecParserOptions,
+  type SpecValidationResult,
 } from './spec-parser.js';

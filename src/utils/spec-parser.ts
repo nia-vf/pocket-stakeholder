@@ -473,3 +473,235 @@ export function createEmptyParsedSpec(title: string = 'Untitled'): ParsedSpec {
     otherSections: {},
   };
 }
+
+/**
+ * Validation result for a parsed spec
+ */
+export interface SpecValidationResult {
+  /** Whether the spec is valid for processing */
+  isValid: boolean;
+
+  /** List of warnings (non-blocking issues) */
+  warnings: string[];
+
+  /** List of errors (blocking issues) */
+  errors: string[];
+
+  /** Completeness score (0-1, where 1 is fully complete) */
+  completenessScore: number;
+
+  /** Sections that are present */
+  presentSections: string[];
+
+  /** Sections that are missing */
+  missingSections: string[];
+}
+
+/**
+ * Validate a parsed spec and provide detailed feedback
+ *
+ * This function checks for:
+ * - Required sections (title)
+ * - Recommended sections (overview, features or requirements)
+ * - Quality of content (non-empty sections)
+ *
+ * @param parsedSpec The parsed spec to validate
+ * @returns Validation result with errors, warnings, and completeness score
+ */
+export function validateParsedSpec(parsedSpec: ParsedSpec): SpecValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const presentSections: string[] = [];
+  const missingSections: string[] = [];
+
+  // Check title (required)
+  if (!parsedSpec.title || parsedSpec.title === 'Untitled Spec' || parsedSpec.title === 'Untitled') {
+    errors.push('Spec is missing a title. Add a level-1 heading (# Title) at the top of the document.');
+  } else {
+    presentSections.push('title');
+  }
+
+  // Check overview (recommended)
+  if (parsedSpec.overview && parsedSpec.overview.trim().length > 0) {
+    presentSections.push('overview');
+    if (parsedSpec.overview.trim().length < 20) {
+      warnings.push('Overview section is very brief. Consider adding more context about the feature.');
+    }
+  } else {
+    missingSections.push('overview');
+    warnings.push('No overview section found. Consider adding an "Overview" or "Summary" section to describe the feature.');
+  }
+
+  // Check features (recommended for feature specs)
+  if (parsedSpec.features && parsedSpec.features.length > 0) {
+    presentSections.push('features');
+  } else {
+    missingSections.push('features');
+    // Only warn, not an error - some specs may not have explicit features
+  }
+
+  // Check requirements (recommended)
+  if (parsedSpec.requirements && parsedSpec.requirements.length > 0) {
+    presentSections.push('requirements');
+  } else {
+    missingSections.push('requirements');
+    // Only warn if no features either - spec needs at least one
+    if (!parsedSpec.features || parsedSpec.features.length === 0) {
+      warnings.push('No features or requirements found. Consider adding a "Features" or "Requirements" section.');
+    }
+  }
+
+  // Check technical architecture (optional but valuable for tech lead)
+  if (parsedSpec.technicalArchitecture && parsedSpec.technicalArchitecture.trim().length > 0) {
+    presentSections.push('technicalArchitecture');
+  } else {
+    missingSections.push('technicalArchitecture');
+    // Don't warn - technical architecture is optional
+  }
+
+  // Check if there's any meaningful content at all
+  const hasContent =
+    presentSections.length > 1 || // More than just title
+    Object.keys(parsedSpec.otherSections).length > 0;
+
+  if (!hasContent) {
+    warnings.push('Spec appears to have minimal content. Consider adding more details for better analysis.');
+  }
+
+  // Calculate completeness score
+  // Title is required (weight 0.2), overview (0.2), features (0.2), requirements (0.2), architecture (0.2)
+  const weights = {
+    title: 0.2,
+    overview: 0.2,
+    features: 0.2,
+    requirements: 0.2,
+    technicalArchitecture: 0.2,
+  };
+
+  let completenessScore = 0;
+  for (const section of presentSections) {
+    if (section in weights) {
+      completenessScore += weights[section as keyof typeof weights];
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    warnings,
+    errors,
+    completenessScore,
+    presentSections,
+    missingSections,
+  };
+}
+
+/**
+ * Extract a summary of the spec suitable for LLM context
+ *
+ * This creates a condensed version of the spec that includes:
+ * - Title and overview
+ * - Feature list (names only)
+ * - Requirement IDs and descriptions
+ * - Technical architecture summary
+ *
+ * @param parsedSpec The parsed spec to summarize
+ * @returns A string summary suitable for LLM prompts
+ */
+export function summarizeSpec(parsedSpec: ParsedSpec): string {
+  const parts: string[] = [];
+
+  // Title
+  parts.push(`# ${parsedSpec.title}`);
+
+  // Overview
+  if (parsedSpec.overview) {
+    parts.push(`\n## Overview\n${parsedSpec.overview}`);
+  }
+
+  // Features (condensed)
+  if (parsedSpec.features && parsedSpec.features.length > 0) {
+    parts.push('\n## Features');
+    for (const feature of parsedSpec.features) {
+      const priority = feature.priority ? ` (${feature.priority})` : '';
+      parts.push(`- ${feature.name}${priority}: ${feature.description}`);
+    }
+  }
+
+  // Requirements (condensed)
+  if (parsedSpec.requirements && parsedSpec.requirements.length > 0) {
+    const functional = parsedSpec.requirements.filter((r) => r.type === 'functional');
+    const nonFunctional = parsedSpec.requirements.filter((r) => r.type === 'non-functional');
+
+    if (functional.length > 0) {
+      parts.push('\n## Functional Requirements');
+      for (const req of functional) {
+        parts.push(`- ${req.id}: ${req.description}`);
+      }
+    }
+
+    if (nonFunctional.length > 0) {
+      parts.push('\n## Non-Functional Requirements');
+      for (const req of nonFunctional) {
+        parts.push(`- ${req.id}: ${req.description}`);
+      }
+    }
+  }
+
+  // Technical architecture
+  if (parsedSpec.technicalArchitecture) {
+    // Truncate if too long
+    const arch = parsedSpec.technicalArchitecture;
+    const truncated = arch.length > 500 ? arch.slice(0, 500) + '...' : arch;
+    parts.push(`\n## Technical Architecture\n${truncated}`);
+  }
+
+  // Other notable sections
+  const importantSections = [
+    'Dependencies',
+    'Open Questions',
+    'Technical Decisions',
+    'Constraints',
+    'Out of Scope',
+  ];
+
+  for (const sectionName of importantSections) {
+    const content = parsedSpec.otherSections[sectionName];
+    if (content) {
+      const truncated = content.length > 300 ? content.slice(0, 300) + '...' : content;
+      parts.push(`\n## ${sectionName}\n${truncated}`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Build a complete FeatureContext with validation
+ *
+ * This is the primary function for creating a context object from a spec file.
+ * It validates the spec and includes validation results in the context.
+ *
+ * @param specPath Path to the specification file
+ * @param options Parsing options
+ * @returns FeatureContext with validation results
+ * @throws SpecParseError if the spec has blocking errors
+ */
+export async function buildFeatureContext(
+  specPath: string,
+  options?: SpecParserOptions & { strict?: boolean }
+): Promise<FeatureContext & { validation: SpecValidationResult }> {
+  const context = await parseSpec(specPath, options);
+  const validation = validateParsedSpec(context.parsedSpec);
+
+  // In strict mode, throw if there are errors
+  if (options?.strict && !validation.isValid) {
+    throw new SpecParseError(
+      `Spec validation failed:\n${validation.errors.map((e) => `  - ${e}`).join('\n')}`
+    );
+  }
+
+  return {
+    ...context,
+    validation,
+  };
+}
