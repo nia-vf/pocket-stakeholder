@@ -80,9 +80,9 @@
 **Objective:** Implement the interactive interview mechanism for clarifying ambiguities.
 
 **Tasks:**
-- [ ] Design interview question generator
-- [ ] Implement core question set (5-8 questions per SPEC.md)
-- [ ] Add follow-up question logic based on answers
+- [x] Design interview question generator
+- [x] Implement core question set (5-8 questions per SPEC.md)
+- [x] Add follow-up question logic based on answers
 - [ ] Create CLI prompt interface for user answers
 - [ ] Support programmatic answer injection (for agent-to-agent interviews)
 - [ ] Implement interview session state management

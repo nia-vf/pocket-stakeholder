@@ -46,3 +46,16 @@ export {
   SpecParseError,
 } from './utils/index.js';
 export type { SpecParserOptions } from './utils/index.js';
+
+// Export interview module
+export {
+  InterviewQuestionGenerator,
+  createQuestionGenerator,
+  selectFollowUps,
+} from './interview/index.js';
+export type {
+  InterviewQuestion,
+  FollowUpTrigger,
+  QuestionSet,
+  QuestionGeneratorConfig,
+} from './interview/index.js';
