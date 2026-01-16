@@ -121,9 +121,9 @@
 - [x] Create CLI entry point
 - [x] Implement `tech-lead <spec-path>` command
 - [x] Add `--autonomous` flag to skip interviews
-- [ ] Add `--output <path>` flag for ADR location
-- [ ] Implement progress output and formatting
-- [ ] Add help text and usage examples
+- [x] Add `--output <path>` flag for ADR location
+- [x] Implement progress output and formatting
+- [x] Add help text and usage examples
 
 **Success Criteria:**
 - `pocket-stakeholder tech-lead specs/my-feature.md` works end-to-end
@@ -137,7 +137,7 @@
 **Objective:** Validate the complete flow and prepare for orchestrator integration.
 
 **Tasks:**
-- [ ] Create test spec document for validation
+- [x] Create test spec document for validation
 - [ ] Run end-to-end test: spec → analysis → interview → ADRs
 - [ ] Export module interface for programmatic use
 - [ ] Document API for ralph-borg adapter

@@ -203,6 +203,48 @@ async function runTechLead(specPath: string, options: TechLeadOptions): Promise<
   progress.success('Tech Lead analysis finished');
 }
 
+const techLeadHelpText = `
+The Tech Lead agent reads product specifications, identifies technical
+decisions that need to be made, and generates Architecture Decision Records
+(ADRs) to document those choices.
+
+Process:
+  1. Parses the specification markdown file
+  2. Analyzes content for technical decisions and ambiguities
+  3. Conducts an interactive interview (unless --autonomous)
+  4. Generates ADRs for each identified decision
+
+Decision Categories:
+  • architecture   High-level system design choices
+  • library        Third-party dependency selections
+  • pattern        Design patterns and coding conventions
+  • integration    External service and API integrations
+  • data-model     Database schema and data structure choices
+  • api-design     API endpoint and interface design
+  • security       Authentication, authorization, encryption
+  • performance    Caching, optimization, scaling decisions
+
+Examples:
+  Analyze a feature spec interactively:
+    $ pocket-stakeholder tech-lead specs/user-auth.md
+
+  Run without prompts (clear specs only):
+    $ pocket-stakeholder tech-lead specs/simple-feature.md --autonomous
+
+  Output ADRs to a specific directory:
+    $ pocket-stakeholder tech-lead specs/api-redesign.md --output docs/decisions
+
+  Combine options:
+    $ pocket-stakeholder tech-lead specs/complex.md -a -o ./adr
+
+ADR Output:
+  ADRs are written in standard format with:
+  • Context: What problem is being solved
+  • Decision: The choice being made
+  • Consequences: Positive and negative impacts
+  • Alternatives: Other options that were considered
+`;
+
 /**
  * Tech Lead command definition
  */
@@ -211,6 +253,7 @@ export const techLeadCommand = new Command('tech-lead')
   .argument('<spec-path>', 'Path to the specification markdown file')
   .option('-a, --autonomous', 'Run in autonomous mode (skip interactive interviews)')
   .option('-o, --output <path>', 'Output directory for ADRs (default: docs/adr)')
+  .addHelpText('after', techLeadHelpText)
   .action(async (specPath: string, options: TechLeadOptions) => {
     try {
       await runTechLead(specPath, options);
