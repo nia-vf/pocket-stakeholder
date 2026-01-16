@@ -25,3 +25,13 @@ export {
   type SpecParserOptions,
   type SpecValidationResult,
 } from './spec-parser.js';
+
+export {
+  SpecAnalyzer,
+  createSpecAnalyzer,
+  categorizeDecision,
+  scoreAmbiguity,
+  TECH_LEAD_ANALYSIS_PROMPT,
+  type SpecAnalyzerConfig,
+  type AnalysisResult,
+} from './spec-analyzer.js';

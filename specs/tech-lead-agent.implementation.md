@@ -62,9 +62,9 @@
 **Objective:** Implement first-pass spec analysis that identifies decisions needing documentation.
 
 **Tasks:**
-- [ ] Create analysis prompt for Tech Lead persona
-- [ ] Implement decision identification logic
-- [ ] Categorize decisions by type (architecture, library, pattern, integration)
+- [x] Create analysis prompt for Tech Lead persona
+- [x] Implement decision identification logic
+- [x] Categorize decisions by type (architecture, library, pattern, integration)
 - [ ] Score ambiguity level for each decision (clear vs needs-clarification)
 - [ ] Generate analysis summary
 

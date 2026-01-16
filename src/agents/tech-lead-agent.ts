@@ -19,6 +19,7 @@ import type {
   Ambiguity,
   ADRDraft,
 } from '../types/index.js';
+import { SpecAnalyzer, type AnalysisResult } from '../utils/spec-analyzer.js';
 
 /**
  * Configuration specific to TechLeadAgent
@@ -47,8 +48,10 @@ interface TechLeadAgentInternalConfig {
 export class TechLeadAgent implements StakeholderAgent {
   readonly role: StakeholderRole = 'tech-lead';
   private readonly internalConfig: TechLeadAgentInternalConfig;
+  private readonly specAnalyzer: SpecAnalyzer;
   private currentContext: FeatureContext | undefined;
   private interviewExchanges: InterviewExchange[] = [];
+  private lastAnalysisResult: AnalysisResult | undefined;
 
   constructor(config?: Partial<TechLeadAgentConfig>) {
     this.internalConfig = {
@@ -56,6 +59,16 @@ export class TechLeadAgent implements StakeholderAgent {
       apiKey: config?.apiKey ?? process.env.ANTHROPIC_API_KEY,
       model: config?.model ?? 'claude-sonnet-4-20250514',
     };
+
+    // Initialize the spec analyzer with same config
+    // Only pass apiKey if it's defined
+    const analyzerConfig: { apiKey?: string; model?: string } = {
+      model: this.internalConfig.model,
+    };
+    if (this.internalConfig.apiKey) {
+      analyzerConfig.apiKey = this.internalConfig.apiKey;
+    }
+    this.specAnalyzer = new SpecAnalyzer(analyzerConfig);
   }
 
   /**
@@ -127,15 +140,27 @@ export class TechLeadAgent implements StakeholderAgent {
    * @returns Identified decisions and ambiguities
    */
   private async analyzeSpec(
-    _context: FeatureContext
+    context: FeatureContext
   ): Promise<{ decisions: IdentifiedDecision[]; ambiguities: Ambiguity[] }> {
-    // Implementation will be added in Phase 4: Autonomous Analysis
-    // This will use the LLM to analyze the spec and identify decisions
+    // Use the SpecAnalyzer to perform LLM-powered analysis
+    const result = await this.specAnalyzer.analyze(context);
+
+    // Store the result for later use (e.g., generating ADRs)
+    this.lastAnalysisResult = result;
 
     return {
-      decisions: [],
-      ambiguities: [],
+      decisions: result.decisions,
+      ambiguities: result.ambiguities,
     };
+  }
+
+  /**
+   * Get the last analysis result
+   *
+   * @returns The most recent analysis result, or undefined if no analysis has been run
+   */
+  getLastAnalysisResult(): AnalysisResult | undefined {
+    return this.lastAnalysisResult;
   }
 }
 

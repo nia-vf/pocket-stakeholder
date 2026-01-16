@@ -1,12 +1,24 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TechLeadAgent, createTechLeadAgent } from '../agents/tech-lead-agent.js';
 import type { FeatureContext, ParsedSpec, ProjectContext } from '../types/index.js';
+
+// Mock the spec-analyzer module to avoid requiring API key
+vi.mock('../utils/spec-analyzer.js', () => ({
+  SpecAnalyzer: vi.fn().mockImplementation(() => ({
+    analyze: vi.fn().mockResolvedValue({
+      decisions: [],
+      ambiguities: [],
+      summary: 'Mock analysis summary',
+    }),
+  })),
+}));
 
 describe('TechLeadAgent', () => {
   let agent: TechLeadAgent;
 
   beforeEach(() => {
-    agent = new TechLeadAgent();
+    vi.clearAllMocks();
+    agent = new TechLeadAgent({ apiKey: 'test-key' });
   });
 
   describe('constructor', () => {
@@ -20,19 +32,24 @@ describe('TechLeadAgent', () => {
         model: 'claude-opus-4-20250514',
       });
       expect(customAgent.role).toBe('tech-lead');
+      expect(customAgent.config.model).toBe('claude-opus-4-20250514');
     });
   });
 
   describe('createTechLeadAgent factory', () => {
     it('should create a TechLeadAgent instance', () => {
-      const factoryAgent = createTechLeadAgent();
+      const factoryAgent = createTechLeadAgent({ apiKey: 'test-key' });
       expect(factoryAgent).toBeInstanceOf(TechLeadAgent);
       expect(factoryAgent.role).toBe('tech-lead');
     });
 
     it('should pass config to the agent', () => {
-      const factoryAgent = createTechLeadAgent({ model: 'claude-opus-4-20250514' });
+      const factoryAgent = createTechLeadAgent({
+        apiKey: 'test-key',
+        model: 'claude-opus-4-20250514',
+      });
       expect(factoryAgent.role).toBe('tech-lead');
+      expect(factoryAgent.config.model).toBe('claude-opus-4-20250514');
     });
   });
 
@@ -59,6 +76,15 @@ describe('TechLeadAgent', () => {
       expect(Array.isArray(result.identifiedDecisions)).toBe(true);
       expect(Array.isArray(result.ambiguities)).toBe(true);
     });
+
+    it('should store the analysis result', async () => {
+      const context = createMockFeatureContext();
+      await agent.conductInterview(context);
+
+      const analysisResult = agent.getLastAnalysisResult();
+      expect(analysisResult).toBeDefined();
+      expect(analysisResult?.summary).toBe('Mock analysis summary');
+    });
   });
 
   describe('generateRecommendations', () => {
@@ -79,6 +105,12 @@ describe('TechLeadAgent', () => {
       expect(Array.isArray(result.adrs)).toBe(true);
       expect(Array.isArray(result.generalRecommendations)).toBe(true);
       expect(Array.isArray(result.warnings)).toBe(true);
+    });
+  });
+
+  describe('getLastAnalysisResult', () => {
+    it('should return undefined before analysis is run', () => {
+      expect(agent.getLastAnalysisResult()).toBeUndefined();
     });
   });
 });
