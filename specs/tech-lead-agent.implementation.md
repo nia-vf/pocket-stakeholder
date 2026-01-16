@@ -13,7 +13,7 @@
 - [x] Create initial ADR for technology choice (ADR-001)
 - [x] Evaluate Node.js/TypeScript vs Python vs Go against requirements
 - [x] Document decision with rationale in `specs/tech-lead-agent.decisions.md`
-- [ ] Initialize project with chosen stack (package.json, tsconfig, pyproject.toml, or go.mod)
+- [x] Initialize project with chosen stack (package.json, tsconfig, pyproject.toml, or go.mod)
 
 **Success Criteria:**
 - ADR-001 exists with clear rationale for stack choice
@@ -26,10 +26,10 @@
 **Objective:** Define and implement the base agent interface that all stakeholders will use.
 
 **Tasks:**
-- [ ] Design `StakeholderAgent` interface per SPEC.md architecture
-- [ ] Implement `TechLeadAgent` class/module skeleton
-- [ ] Define `FeatureContext` type for input
-- [ ] Define `InterviewResult` and `Recommendations` types for output
+- [x] Design `StakeholderAgent` interface per SPEC.md architecture
+- [x] Implement `TechLeadAgent` class/module skeleton
+- [x] Define `FeatureContext` type for input
+- [x] Define `InterviewResult` and `Recommendations` types for output
 - [ ] Add LLM client wrapper (Claude API integration)
 
 **Success Criteria:**
