@@ -138,9 +138,9 @@
 
 **Tasks:**
 - [x] Create test spec document for validation
-- [ ] Run end-to-end test: spec → analysis → interview → ADRs
-- [ ] Export module interface for programmatic use
-- [ ] Document API for ralph-borg adapter
+- [x] Run end-to-end test: spec → analysis → interview → ADRs
+- [x] Export module interface for programmatic use
+- [x] Document API for ralph-borg adapter
 - [ ] Write usage documentation
 
 **Success Criteria:**
