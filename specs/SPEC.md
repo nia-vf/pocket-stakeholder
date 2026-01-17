@@ -273,11 +273,11 @@ interface StakeholderAgent {
 ## Roadmap
 
 ### Phase 1: MVP - Single Stakeholder Proof of Concept
-- [ ] Design agent interface and interview flow
-- [ ] Implement Tech Lead agent with interview capability
-- [ ] Build basic CLI for invoking pipeline
-- [ ] Generate spec document from interview output
-- [ ] Test end-to-end flow with real feature
+- [x] Design agent interface and interview flow
+- [x] Implement Tech Lead agent with interview capability
+- [x] Build basic CLI for invoking pipeline
+- [x] Generate ADR documents from interview output
+- [x] Test end-to-end flow with real feature
 
 ### Phase 2: Full Virtual Team
 - [ ] Add QA agent with testing-focused interview
