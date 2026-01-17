@@ -14,7 +14,7 @@ Index of specification documents for pocket-stakeholder.
 
 | Document | Feature | Status |
 |----------|---------|--------|
-| [tech-lead-agent.md](./tech-lead-agent.md) | Tech Lead Agent - first stakeholder for architecture decisions and ADRs | Draft |
+| [tech-lead-agent.md](./tech-lead-agent.md) | Tech Lead Agent - first stakeholder for architecture decisions and ADRs | Complete |
 
 ## Implementation Plans
 
