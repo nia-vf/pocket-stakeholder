@@ -280,8 +280,8 @@ interface StakeholderAgent {
 - [x] Test end-to-end flow with real feature
 
 ### Phase 2: Full Virtual Team
-- [ ] Add QA agent with testing-focused interview
-- [ ] Add UX agent with design-focused interview
+- [x] Add QA agent with testing-focused interview
+- [x] Add UX agent with design-focused interview
 - [ ] Implement pipeline orchestrator for multi-agent flow
 - [ ] Add decision record generation
 - [ ] Add implementation task generation
