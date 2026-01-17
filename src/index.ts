@@ -26,7 +26,11 @@ export type {
 
 // Export agents
 export { TechLeadAgent, createTechLeadAgent } from './agents/index.js';
+export { QAAgent, createQAAgent } from './agents/index.js';
+export { UXAgent, createUXAgent } from './agents/index.js';
 export type { TechLeadAgentConfig } from './agents/index.js';
+export type { QAAgentConfig } from './agents/index.js';
+export type { UXAgentConfig } from './agents/index.js';
 
 // Export utilities
 export { LLMClient, LLMError, createLLMClient } from './utils/index.js';
@@ -92,3 +96,16 @@ export type {
   RenderedADR,
   WriteResult,
 } from './adr/index.js';
+
+// Export orchestrator module
+export {
+  PipelineOrchestrator,
+  createPipelineOrchestrator,
+} from './orchestrator/index.js';
+export type {
+  PipelineConfig,
+  PipelineResult,
+  PipelineProgressEvent,
+  PipelineProgressCallback,
+  PipelineRunOptions,
+} from './orchestrator/index.js';
